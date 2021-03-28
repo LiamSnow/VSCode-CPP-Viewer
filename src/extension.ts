@@ -1,13 +1,10 @@
 import * as vscode from 'vscode';
 
-import { NodeDependenciesProvider } from './nodeDependencies';
+import { FileExplorer } from './cppViewTree';
 
 export function activate(context: vscode.ExtensionContext) {
 
-  vscode.window.registerTreeDataProvider(
-    'nodeDependencies',
-    new NodeDependenciesProvider(vscode.workspace.rootPath!)
-  );
+  new FileExplorer(context);
 
 }
 
