@@ -1,5 +1,5 @@
 # VSCode C++ Viewer
-Displays a C++ project in the explorer by grouping each cpp, header, and test files.
+Displays an alternative view of a C++ project in the explorer by grouping cpp amd header files.
 
 It will turn the following directory structure:
 ```
@@ -12,23 +12,25 @@ src/
     test/
         cpp/
             MainTest.cpp
-        include/
-            MainTest.h
+CMake.txt
 ```
 Into:
 ```
 src/
-    Main
-     - C++
-     - Header
-     - Test C++
-     - Test Header
+    main/
+        Main
+    test/
+        MainTest
+CMake.txt
 ```
 
 
 # Requirements
-C++ Viewer only works with the following directory structure. Support for different file
-structures may be added in the future.
+C++ Viewer works by finding a directory "split" where `cpp/` and `include/` (optional) exists. 
+From there it will group the following files.
+If only `cpp/` exists it will simply use the files inside, but when both `include/` exists it will only use
+those files, and search for corresponding cpp files under `cpp/`. This means if you have a `include/` directory
+cpp files that do not have corresponding header files will not be displayed.
 ```
 src/
     main/
