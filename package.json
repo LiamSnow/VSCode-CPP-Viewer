@@ -24,24 +24,51 @@
 		},
 		"commands": [
 			{
-				"command": "cppView.refreshFile",
-				"title": "Refresh",
-				"icon": {
-					"light": "resources/light/refresh.svg",
-					"dark": "resources/dark/refresh.svg"
-				}
+				"command": "cppView.newFolder",
+				"title": "New Folder"
+			},
+			{
+				"command": "cppView.newGroup",
+				"title": "New Group"
+			},
+			{
+				"command": "cppView.delete",
+				"title": "Delete"
+			},
+			{
+				"command": "cppView.rename",
+				"title": "Rename"
 			},
 			{
 				"command": "cppView.openFile",
 				"title": "Open File"
+			},
+			{
+				"command": "cppView.openFilesSplit",
+				"title": "Open Files Split"
 			}
 		],
 		"menus": {
 			"view/item/context": [
 				{
-					"command": "cppView.refreshFile",
-					"when": "view == cppView && viewItem == file",
-					"group": "inline"
+					"command": "cppView.newFolder",
+					"when": "view == cppView && viewItem != cppView.Group && viewItem != cppView.Sub",
+					"group": "cppViewGroup@1"
+				},
+				{
+					"command": "cppView.newGroup",
+					"when": "view == cppView && viewItem != cppView.Group && viewItem != cppView.Sub",
+					"group": "cppViewGroup@2"
+				},
+				{
+					"command": "cppView.rename",
+					"when": "view == cppView",
+					"group": "cppViewGroup@3"
+				},
+				{
+					"command": "cppView.delete",
+					"when": "view == cppView",
+					"group": "cppViewGroup@4"
 				}
 			]
 		}

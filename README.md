@@ -8,12 +8,12 @@ src/
         cpp/
             Main.cpp
         include/
-            Main.h (or Main.hpp)
+            Main.h
     test/
         cpp/
             MainTest.cpp
         include/
-            MainTest.h (or MainTest.hpp)
+            MainTest.h
 ```
 Into:
 ```
