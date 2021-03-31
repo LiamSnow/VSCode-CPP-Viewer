@@ -2,6 +2,8 @@
 	"name": "cpp-viewer",
 	"displayName": "C++ Viewer",
 	"description": "Displays C++ code by grouping cpp, header, and test files",
+	"publisher": "LiamSnow",
+	"repository": "https://github.com/LiamSnow/VSCode-CPP-Viewer",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.54.0"
