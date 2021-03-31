@@ -39,6 +39,7 @@ src/
             Window.cpp <-- will not be displayed
         include/
             Main.h
+            Constants.h <-- this is fine though
     test/
         cpp/
             MainTest.cpp

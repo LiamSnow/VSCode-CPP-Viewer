@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 
-import { FileExplorer } from './cppViewTree';
+import { CPPView } from './cppView';
 
 export function activate(context: vscode.ExtensionContext) {
 
-  new FileExplorer(context);
+  new CPPView(context);
 
 }
 

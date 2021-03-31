@@ -5,123 +5,46 @@ import * as mkdirp from 'mkdirp';
 import * as rimraf from 'rimraf';
 import { ViewColumn } from 'vscode';
 import { ThemeIcon } from 'vscode';
+import { FSWatcher } from 'node:fs';
 
-export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscode.FileSystemProvider {
+export class CPPViewProvider implements vscode.TreeDataProvider<Entry> {
 
-	//File System Provider
-	private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
+	private _onDidChangeTreeData = new vscode.EventEmitter<Entry | undefined>();
+	public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;  
+	private workspaceFolder : vscode.WorkspaceFolder;
+	private watcher : FSWatcher;
 
 	constructor() {
-		this._onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
-	}
+		this.workspaceFolder = vscode.workspace.workspaceFolders?.filter(folder => folder.uri.scheme === 'file')[0]!;
+		const workspaceUri = this.workspaceFolder.uri;
 
-	get onDidChangeFile(): vscode.Event<vscode.FileChangeEvent[]> {
-		return this._onDidChangeFile.event;
-	}
-
-	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
-		const watcher = fs.watch(uri.fsPath, { recursive: options.recursive }, async (event: string, filename: string | Buffer) => {
-			const filepath = path.join(uri.fsPath, _.normalizeNFC(filename.toString()));
-
-			// TODO support excludes (using minimatch library?)
-
-			this._onDidChangeFile.fire([{
-				type: event === 'change' ? vscode.FileChangeType.Changed : await _.exists(filepath) ? vscode.FileChangeType.Created : vscode.FileChangeType.Deleted,
-				uri: uri.with({ path: filepath })
-			} as vscode.FileChangeEvent]);
+		this.watcher = fs.watch(workspaceUri.fsPath, { recursive: true }, async (event: string, filename: string | Buffer) => {
+			this._onDidChangeTreeData.fire(undefined);
+			// const filepath = path.join(workspaceUri.fsPath, _.normalizeNFC(filename.toString()));
+			// const uri = workspaceUri.with({ path: filepath });
+			
+			// const stat = await _.stat(uri.fsPath);
+			// this._onDidChangeTreeData.fire({
+			// 	uri,
+			// 	//type: event === 'change' ? vscode.FileChangeType.Changed : await _.exists(filepath) ? vscode.FileChangeType.Created : vscode.FileChangeType.Deleted,
+			// 	type: stat.isFile() ? vscode.FileType.File : (stat.isDirectory() ? vscode.FileType.Directory : vscode.FileType.Unknown)
+			// });
 		});
 
-		return { dispose: () => watcher.close() };
+		//this.watcher.close()
 	}
 
-	stat(uri: vscode.Uri): vscode.FileStat | Thenable<vscode.FileStat> {
-		return this._stat(uri.fsPath);
-	}
-
-	async _stat(path: string): Promise<vscode.FileStat> {
-		return new FileStat(await _.stat(path));
-	}
-
-	readDirectory(uri: vscode.Uri): [string, vscode.FileType][] | Thenable<[string, vscode.FileType][]> {
-		return this._readDirectory(uri);
-	}
-
-	async _readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-		const children = await _.readdir(uri.fsPath);
+	async getEntriesFromDir(baseUri: vscode.Uri): Promise<Entry[]> {
+		const children = await _.readdir(baseUri.fsPath);
 
 		const result: [string, vscode.FileType][] = [];
 		for (let i = 0; i < children.length; i++) {
 			const child = children[i];
-			const stat = await this._stat(path.join(uri.fsPath, child));
+			const stat = new FileStat(await _.stat(path.join(baseUri.fsPath, child)));
 			result.push([child, stat.type]);
 		}
 
-		return Promise.resolve(result);
-	}
-
-	createDirectory(uri: vscode.Uri): void | Thenable<void> {
-		return _.mkdir(uri.fsPath);
-	}
-
-	readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
-		return _.readfile(uri.fsPath);
-	}
-
-	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): void | Thenable<void> {
-		return this._writeFile(uri, content, options);
-	}
-
-	async _writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): Promise<void> {
-		const exists = await _.exists(uri.fsPath);
-		if (!exists) {
-			if (!options.create) {
-				throw vscode.FileSystemError.FileNotFound();
-			}
-
-			await _.mkdir(path.dirname(uri.fsPath));
-		} else {
-			if (!options.overwrite) {
-				throw vscode.FileSystemError.FileExists();
-			}
-		}
-
-		return _.writefile(uri.fsPath, content as Buffer);
-	}
-
-	delete(uri: vscode.Uri, options: { recursive: boolean; }): void | Thenable<void> {
-		if (options.recursive) {
-			return _.rmrf(uri.fsPath);
-		}
-
-		return _.unlink(uri.fsPath);
-	}
-
-	rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): void | Thenable<void> {
-		return this._rename(oldUri, newUri, options);
-	}
-
-	async _rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): Promise<void> {
-		const exists = await _.exists(newUri.fsPath);
-		if (exists) {
-			if (!options.overwrite) {
-				throw vscode.FileSystemError.FileExists();
-			} else {
-				await _.rmrf(newUri.fsPath);
-			}
-		}
-
-		const parentExists = await _.exists(path.dirname(newUri.fsPath));
-		if (!parentExists) {
-			await _.mkdir(path.dirname(newUri.fsPath));
-		}
-
-		return _.rename(oldUri.fsPath, newUri.fsPath);
-	}
-
-	// tree data provider
-	async getEntriesFromDir(baseUri: vscode.Uri): Promise<Entry[]> {
-		const children = await this.readDirectory(baseUri);
-		return children
+		return result
 			.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(baseUri.fsPath, name)), type }))
 			.sort((a, b) => { 
 				if (a.type === b.type) {
@@ -146,7 +69,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 			if (name === dir) {
 				return {
 					uri: vscode.Uri.file(path.join(baseUri.fsPath, name)),
-					type: (await this._stat(path.join(baseUri.fsPath, name))).type
+					type: (new FileStat((await _.stat(path.join(baseUri.fsPath, name))))).type
 				};
 			}
 		}
@@ -159,18 +82,18 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 				//CPPGroup
 				let returnList = [ { uri: element.uri, type: vscode.FileType.File, title: 'include' } ];
 
-				//search for include/ base directory
+				//search for `include/` base directory
 				const fsPath = element.uri.fsPath;
 				const includeInd = fsPath.indexOf('include');
 				if (includeInd != -1) {
-					//add similar files in cpp/ (if exist)
+					//add similar files in `cpp/` (if exist)
 					const cppDir = path.join(
-						fsPath.substring(0, includeInd), //before include/ folder
-						'\\cpp\\', //add cpp/ folder
-						//remove .h from fsPath, then get from after include/ folder
+						fsPath.substring(0, includeInd), //before `include/` folder
+						'\\cpp\\', //add `cpp/` folder
+						//remove .h from fsPath, then get from after `include/` folder
 						fsPath.slice(0, -path.extname(fsPath).length).substring(includeInd + 'include'.length) 
 						) + '.cpp';
-					if ((await _.stat(cppDir)).isFile()) {
+					if (fs.existsSync(cppDir)) {
 						returnList.push({
 							uri: vscode.Uri.file(cppDir), 
 							type: vscode.FileType.File,
@@ -218,13 +141,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 
 		//base dir
 		else {
-			const workspaceFolder = vscode.workspace.workspaceFolders?.filter(folder => folder.uri.scheme === 'file')[0];
-			if (workspaceFolder) {
-				return (await this.getEntriesFromDir(workspaceFolder.uri));
-				// const src = await this.getEntryFromDir('src', workspaceFolder.uri);
-				// if (src) {
-				// 	return await this.getEntriesFromDir(src.uri);
-				// }
+			if (this.workspaceFolder) {
+				return (await this.getEntriesFromDir(this.workspaceFolder.uri));
 			}
 		}
 
@@ -275,12 +193,150 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 	}
 }
 
-export class FileExplorer {
+export class CPPView {
+	treeDataProvider: CPPViewProvider;
+
 	constructor(context: vscode.ExtensionContext) {
-		const treeDataProvider = new FileSystemProvider();
-		context.subscriptions.push(vscode.window.createTreeView('cppView', { treeDataProvider }));
+		this.treeDataProvider = new CPPViewProvider();
+		context.subscriptions.push(vscode.window.createTreeView('cppView', { treeDataProvider: this.treeDataProvider }));
+		vscode.commands.registerCommand('cppView.newFolder', (resource) => this.make(resource, 'folder'));
+		vscode.commands.registerCommand('cppView.newGroup', (resource) => this.make(resource, 'group'));
+		vscode.commands.registerCommand('cppView.delete', (resource) => this.delete(resource));
+		vscode.commands.registerCommand('cppView.rename', (resource) => this.rename(resource));
 		vscode.commands.registerCommand('cppView.openFile', (resource) => this.openFile(resource));
 		vscode.commands.registerCommand('cppView.openFilesSplit', (resource1, resource2) => this.openFilesSplit(resource1, resource2));
+	}
+
+	private async make(resource: Entry, type: 'folder' | 'group'): Promise<void> {
+		const fsPath = resource.uri.fsPath;
+		const folderNames = [ 'cpp', 'include' ];
+		const fileExts = [ '.cpp', '.h' ];
+		const name = await vscode.window.showInputBox();
+
+		if (name) {
+			let paths = [];
+			const children = await this.treeDataProvider.getEntriesFromDir(resource.uri);
+
+			let creatingAtSplit = false;
+			for (const child of children) {
+				if (folderNames.includes(path.basename(child.uri.fsPath))) {
+					creatingAtSplit = true;
+				}
+			}
+
+			if (creatingAtSplit) {
+				for (let i = 0; i < 2; i++) {
+					const altPath = path.join(fsPath, folderNames[i], name) + ((type === 'group') ? fileExts[i] : '');
+					if (type !== 'group' || 
+						fs.existsSync(altPath.slice(0, -path.basename(altPath).length))) { //make sure this directory exists if adding group
+						paths.push(altPath);
+					}
+				}
+			}
+			else {
+				//creating normally
+				paths.push(path.join(fsPath, name));
+				for (let i = 0; i < 2; i++) {
+					let foundInd = fsPath.indexOf(path.sep + folderNames[i] + path.sep) + 1;
+					if (foundInd !== 0) { //0 because its indexOf() + 1
+						//is under a cpp split
+						const altPath = path.join(
+							fsPath.substring(0, foundInd), //fsPath before folderName
+							folderNames[Number(!i)], //add alt folderName
+							fsPath.substring(foundInd + folderNames[i].length), //fsPath after folderName
+							name) + (type === 'group' ? fileExts[Number(!i)] : ''); //new name + opt file ext;
+
+						if (type !== 'group' || 
+							fs.existsSync(altPath.slice(0, -path.basename(altPath).length))) { //make sure this directory exists if adding group
+							paths.push(altPath);
+						}
+	
+						if (type === 'group') {
+							paths[0] += fileExts[i]; //add file extension to other path
+						}
+						break;
+					}
+				}
+			}
+
+			//write to all paths
+			for (let i = 0; i < paths.length; i++) {
+				try {
+					if (type === 'folder') {
+						fs.mkdirSync(paths[i]);
+					} else {
+						fs.writeFileSync(paths[i], '');
+					}
+				} catch (err) { console.error(err); }
+			}
+		}
+	}
+
+	private async delete(resource: Entry): Promise<void> {
+		const altResource = await this.locateAltResource(resource);
+		_.rmrf(resource.uri.fsPath);
+		if (altResource) {
+			_.rmrf(altResource.uri.fsPath);
+		}
+	}
+
+	private async rename(resource: Entry, newName?: string): Promise<void> {
+		const oldUri = resource.uri;
+		const basename = path.basename(oldUri.fsPath);
+
+		//also rename alt
+		if (!newName) {
+			const extname = path.extname(basename);
+			const extnameLength = extname.length;
+			let promptName = basename;
+			if (extnameLength > 0) {
+				promptName = basename.slice(0, -extnameLength);
+			}
+			const altResource = await this.locateAltResource(resource);
+			if (altResource) {
+				newName = await vscode.window.showInputBox({ value: promptName, valueSelection: undefined });
+				this.rename(altResource, newName + path.extname(altResource.uri.fsPath));
+				newName += extname;
+			}
+		}
+
+		//rename this one
+		if (!newName) {
+			newName = await vscode.window.showInputBox({ value: basename, valueSelection: undefined });
+		}
+		const newUri = vscode.Uri.file(oldUri.fsPath.slice(0, -basename.length) + newName);
+		if (fs.existsSync(newUri.fsPath)) {
+			vscode.window.showErrorMessage("File Already Exists!");
+		}
+		if (!fs.existsSync(path.dirname(newUri.fsPath))) {
+			await _.mkdir(path.dirname(newUri.fsPath));
+		}
+		return _.rename(oldUri.fsPath, newUri.fsPath);
+	}
+
+	/** Returns assosiated alt resource for entries under a cpp split */
+	private async locateAltResource(resource: Entry): Promise<Entry | undefined> {
+		const fsPath = resource.uri.fsPath;
+		const folderNames = [ 'cpp', 'include' ];
+		const fileExts = [ '.cpp', '.h' ];
+
+		if (!resource.title) { //skip if this is a sub
+			for (let i = 0; i < 2; i++) {
+				const foundInd = fsPath.indexOf(path.sep + folderNames[i] + path.sep) + 1;
+				const hasExt = path.extname(fsPath).length > 0;
+				const fsPathNoExt = hasExt ? fsPath.slice(0, -path.extname(fsPath).length) : fsPath;
+				const altFileExt = hasExt ? fileExts[Number(!i)] : '';
+				if (foundInd !== 0) { //0 because indexOf() + 1
+					const altFsPath = path.join(
+						fsPath.substring(0, foundInd), //fsPath before folderName
+						folderNames[Number(!i)], //add alt folderName
+						fsPathNoExt.substring(foundInd + folderNames[i].length)) + altFileExt; //fsPath after folderName + altFileExt
+					if (fs.existsSync(altFsPath)) {
+						return { uri: vscode.Uri.file(altFsPath), type: resource.type };
+					}
+				}
+			}
+		}
 	}
 
 	private openFile(resource: vscode.Uri): void {
@@ -371,12 +427,6 @@ namespace _ {
 	export function writefile(path: string, content: Buffer): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
 			fs.writeFile(path, content, error => handleResult(resolve, reject, error, void 0));
-		});
-	}
-
-	export function exists(path: string): Promise<boolean> {
-		return new Promise<boolean>((resolve, reject) => {
-			fs.exists(path, exists => handleResult(resolve, reject, null, exists));
 		});
 	}
 
