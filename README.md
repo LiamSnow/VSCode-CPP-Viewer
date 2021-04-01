@@ -24,6 +24,9 @@ src/
 CMake.txt
 ```
 
+# Usage
+Simply open a C++ project with the directory structure noted in "Requirements" and a new tab 
+in the explorer will apear named "C++ View."
 
 # Requirements
 C++ Viewer works by finding a directory "split" where `cpp/` and `include/` (optional) exists. 
@@ -47,3 +50,14 @@ src/
             MainTest.cpp
 ```
 This may change in a future update.
+
+# Extension Settings
+No settings yet.
+
+# Known Issues
+No known issues yet. Feel free to add issues on the this repository.
+
+# Release Notes
+
+### 0.0.1 
+Inital Release - only includes the file-tree (and corresponding functionality).
