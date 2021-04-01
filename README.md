@@ -61,3 +61,6 @@ No known issues yet. Feel free to add issues on the this repository.
 
 ### 0.0.1 
 Inital Release - only includes the file-tree (and corresponding functionality).
+
+## Contact
+Creator: [liamsnow03@gmail.com](mailto:liamsnow03@gmail.com)
