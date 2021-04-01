@@ -24,11 +24,11 @@ src/
 CMake.txt
 ```
 
-# Usage
+## Usage
 Simply open a C++ project with the directory structure noted in "Requirements" and a new tab 
 in the explorer will apear named "C++ View."
 
-# Requirements
+## Requirements
 C++ Viewer works by finding a directory "split" where `cpp/` and `include/` (optional) exists. 
 From there it will group the following files.
 If only `cpp/` exists it will simply use the files inside, but when both `include/` exists it will only use
@@ -51,13 +51,13 @@ src/
 ```
 This may change in a future update.
 
-# Extension Settings
+## Extension Settings
 No settings yet.
 
-# Known Issues
+## Known Issues
 No known issues yet. Feel free to add issues on the this repository.
 
-# Release Notes
+## Release Notes
 
 ### 0.0.1 
 Inital Release - only includes the file-tree (and corresponding functionality).
